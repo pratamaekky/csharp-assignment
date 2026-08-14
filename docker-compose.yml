@@ -1,0 +1,18 @@
+services:
+  todo-api:
+    build:
+      context: .
+      dockerfile: TodoApi/Dockerfile
+    ports:
+      - "5080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+
+  chat-ws:
+    build:
+      context: .
+      dockerfile: ChatWs/Dockerfile
+    ports:
+      - "5081:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
