@@ -26,7 +26,7 @@ Two independent ASP.NET Core (.NET 10 LTS) Minimal API projects, each with its o
 
 Rationale for two separate apps instead of one combined process: the assignment lists "Deploy a simple REST API application" and "Deploy a simple Websocket application" as two distinct bullets — treating them as two deployables is the literal, defensible reading. A merged app would save a little setup but weakens the "I deployed two things" story during review.
 
-Rationale for Docker over native Linux install: no .NET SDK is installed on this Mac; Docker is already available (v29.6.2). Building official `mcr.microsoft.com/dotnet/sdk:10.0` / `aspnet:10.0` Linux images satisfies "on Linux" unambiguously and needs zero host toolchain setup. The official ASP.NET runtime images run as a non-root `app` user and listen on port 8080 by default — that's free best practice, not something to hand-roll.
+Rationale for Docker over native Linux install: no .NET SDK is installed on this Mac; Docker is already available (v29.6.2). Building official `mcr.microsoft.com/dotnet/sdk:10.0` / `aspnet:10.0` Linux images satisfies "on Linux" unambiguously and needs zero host toolchain setup. The official ASP.NET runtime images provide a non-root `app` user (uid 1654) and listen on port 8080 by default, but the non-root user must be activated explicitly with `USER $APP_UID` — it's not the default process owner.
 
 Rationale for Minimal API over MVC Controllers: less boilerplate for two small apps, current idiomatic default for new ASP.NET Core services, still supports the same DI/testability patterns.
 
@@ -110,7 +110,7 @@ Plain UTF-8 text frames, no envelope/JSON wrapper — keeps the demo trivial to 
 - **Structured logging** via the built-in `ILogger<T>` (already structured/scoped by ASP.NET Core hosting) — no Serilog/NLog; the built-in provider is sufficient for console output in a container.
 - **Config**: `appsettings.json` + `appsettings.Development.json`, overridable by environment variables (`ASPNETCORE_ENVIRONMENT`, `ASPNETCORE_URLS`) — standard ASP.NET Core convention, nothing custom.
 - **Nullable reference types** (`<Nullable>enable</Nullable>`) in both `.csproj`s — compile-time null safety at zero runtime cost.
-- **Dockerfile**: multi-stage (`sdk` build stage → `aspnet` runtime stage), final image only contains the published app, runs as the image's built-in non-root `app` user, listens on `8080`.
+- **Dockerfile**: multi-stage (`sdk` build stage → `aspnet` runtime stage), final image only contains the published app, activates the image's built-in non-root `app` user via `USER $APP_UID`, listens on `8080`.
 - **Health check**: plain `/health` minimal endpoint (not the full `Microsoft.Extensions.Diagnostics.HealthChecks` package with dependency probes — there are no external dependencies to probe, so the package would add ceremony without adding a real check).
 
 ## Testing

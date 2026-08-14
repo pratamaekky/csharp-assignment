@@ -18,7 +18,7 @@
 - No authentication, no Swagger/OpenAPI UI, no CI pipeline — explicitly out of scope per spec.
 - Tests are unit tests only, against `InMemoryTodoRepository` and `ConnectionManager` directly — no HTTP-layer / integration tests, per spec's Testing section.
 - Container ports: `TodoApi` host `5080` → container `8080`; `ChatWs` host `5081` → container `8080`. Both listen on `8080` inside the container (`ASPNETCORE_URLS=http://+:8080`).
-- Official `aspnet:10.0` runtime images already run as a non-root user by default — do not add a custom `USER` directive.
+- Official `aspnet:10.0` runtime images ship a non-root `app` user (uid 1654) but do not activate it by default — add `USER $APP_UID` in the runtime stage to opt in.
 - All commands in this plan assume the current working directory is `csharp-assignment/` (the folder created in Task 1), unless a step explicitly `cd`s elsewhere.
 - Full design rationale: `docs/superpowers/specs/2026-08-15-csharp-todo-chat-design.md` (read this first if anything below seems under-explained).
 
@@ -905,7 +905,6 @@ RUN dotnet restore TodoApi/TodoApi.csproj
 COPY TodoApi/ TodoApi/
 RUN dotnet publish TodoApi/TodoApi.csproj -c Release -o /app/publish --no-restore
 
-# aspnet:10.0 already runs as a non-root "app" user by default.
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
@@ -913,6 +912,9 @@ COPY --from=build /app/publish .
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
+# aspnet:10.0 ships a non-root "app" user (uid 1654) but does not activate it
+# by default — USER $APP_UID opts in explicitly.
+USER $APP_UID
 ENTRYPOINT ["dotnet", "TodoApi.dll"]
 ```
 
@@ -947,7 +949,6 @@ RUN dotnet restore ChatWs/ChatWs.csproj
 COPY ChatWs/ ChatWs/
 RUN dotnet publish ChatWs/ChatWs.csproj -c Release -o /app/publish --no-restore
 
-# aspnet:10.0 already runs as a non-root "app" user by default.
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
@@ -955,6 +956,9 @@ COPY --from=build /app/publish .
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
+# aspnet:10.0 ships a non-root "app" user (uid 1654) but does not activate it
+# by default — USER $APP_UID opts in explicitly.
+USER $APP_UID
 ENTRYPOINT ["dotnet", "ChatWs.dll"]
 ```
 
@@ -1104,7 +1108,7 @@ ws1.addEventListener('open', () => {
 - DI + interfaces at the seams that are actually tested (`ITodoRepository`, `ConnectionManager`).
 - Nullable reference types enabled in every project.
 - Structured logging via the built-in `ILogger<T>` (no extra logging dependency).
-- Multi-stage Dockerfiles — small runtime image, non-root user by default.
+- Multi-stage Dockerfiles — small runtime image, non-root via explicit `USER $APP_UID`.
 - `/health` endpoint on both apps.
 - Unit tests (xUnit) around the actual logic (repository, connection manager), not a coverage target.
 

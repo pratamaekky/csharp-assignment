@@ -7,7 +7,7 @@ public class InMemoryTodoRepository : ITodoRepository
 {
     private readonly ConcurrentDictionary<Guid, Todo> _todos = new();
 
-    public IEnumerable<Todo> GetAll() => _todos.Values;
+    public IEnumerable<Todo> GetAll() => _todos.Values.OrderBy(t => t.CreatedAt);
 
     public Todo? GetById(Guid id) => _todos.TryGetValue(id, out var todo) ? todo : null;
 

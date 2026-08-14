@@ -9,7 +9,6 @@ RUN dotnet restore TodoApi/TodoApi.csproj
 COPY TodoApi/ TodoApi/
 RUN dotnet publish TodoApi/TodoApi.csproj -c Release -o /app/publish --no-restore
 
-# aspnet:10.0 already runs as a non-root "app" user by default.
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
@@ -17,4 +16,7 @@ COPY --from=build /app/publish .
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
+# aspnet:10.0 ships a non-root "app" user (uid 1654) but does not activate it
+# by default — USER $APP_UID opts in explicitly.
+USER $APP_UID
 ENTRYPOINT ["dotnet", "TodoApi.dll"]

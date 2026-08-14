@@ -82,7 +82,7 @@ ws1.addEventListener('open', () => {
 - DI + interfaces at the seams that are actually tested (`ITodoRepository`, `ConnectionManager`).
 - Nullable reference types enabled in every project.
 - Structured logging via the built-in `ILogger<T>` (no extra logging dependency).
-- Multi-stage Dockerfiles — small runtime image, non-root user by default.
+- Multi-stage Dockerfiles — small runtime image, non-root via explicit `USER $APP_UID`.
 - `/health` endpoint on both apps.
 - Unit tests (xUnit) around the actual logic (repository, connection manager), not a coverage target.
 

@@ -17,7 +17,7 @@ public static class TodoEndpoints
             return todo is not null ? Results.Ok(todo) : Results.NotFound();
         });
 
-        app.MapPost("/todos", (CreateTodoRequest request, ITodoRepository repo) =>
+        app.MapPost("/todos", (CreateTodoRequest request, ITodoRepository repo, ILogger<Program> logger) =>
         {
             var title = request.Title?.Trim();
             if (string.IsNullOrEmpty(title) || title.Length > MaxTitleLength)
@@ -26,6 +26,7 @@ public static class TodoEndpoints
             }
 
             var todo = repo.Add(title);
+            logger.LogInformation("Todo {TodoId} created", todo.Id);
             return Results.Created($"/todos/{todo.Id}", todo);
         });
 
@@ -41,7 +42,11 @@ public static class TodoEndpoints
             return updated is not null ? Results.Ok(updated) : Results.NotFound();
         });
 
-        app.MapDelete("/todos/{id:guid}", (Guid id, ITodoRepository repo) =>
-            repo.Delete(id) ? Results.NoContent() : Results.NotFound());
+        app.MapDelete("/todos/{id:guid}", (Guid id, ITodoRepository repo, ILogger<Program> logger) =>
+        {
+            if (!repo.Delete(id)) return Results.NotFound();
+            logger.LogInformation("Todo {TodoId} deleted", id);
+            return Results.NoContent();
+        });
     }
 }

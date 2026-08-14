@@ -5,6 +5,8 @@ namespace ChatWs.WebSockets;
 
 public class ChatWebSocketHandler
 {
+    private const int MaxMessageBytes = 64 * 1024;
+
     private readonly ConnectionManager _connectionManager;
     private readonly ILogger<ChatWebSocketHandler> _logger;
 
@@ -24,15 +26,42 @@ public class ChatWebSocketHandler
         {
             while (socket.State == WebSocketState.Open)
             {
-                var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                using var messageStream = new MemoryStream();
+                WebSocketReceiveResult result;
+                var tooBig = false;
 
-                if (result.MessageType == WebSocketMessageType.Close)
+                do
                 {
-                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                    result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+
+                    if (result.MessageType == WebSocketMessageType.Close)
+                    {
+                        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                        return;
+                    }
+
+                    if (messageStream.Length + result.Count > MaxMessageBytes)
+                    {
+                        tooBig = true;
+                        break;
+                    }
+
+                    messageStream.Write(buffer, 0, result.Count);
+                } while (!result.EndOfMessage);
+
+                if (tooBig)
+                {
+                    await socket.CloseAsync(WebSocketCloseStatus.MessageTooBig, $"Message exceeds {MaxMessageBytes} bytes", CancellationToken.None);
                     break;
                 }
 
-                var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                if (result.MessageType == WebSocketMessageType.Binary)
+                {
+                    _logger.LogWarning("Client {ConnectionId} sent a binary frame; ignoring (text only)", id);
+                    continue;
+                }
+
+                var message = Encoding.UTF8.GetString(messageStream.ToArray());
                 await _connectionManager.BroadcastAsync(id, message);
             }
         }
